@@ -5,6 +5,11 @@ import Navbar from "../../components/Navbar";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+// Disable static prerendering for unknown dynamic parameters at build time
+export async function generateStaticParams() {
+  return [];
+}
+
 async function getCompanyData(id) {
   try {
     const res = await fetch(`${API_URL}/api/jobs/company/${id}`, { cache: "no-store" });
@@ -43,7 +48,6 @@ async function getAllJobs(companyId) {
 }
 
 export default async function CompanyDetailPage({ params }) {
-  // Opt out of static prerendering safely without triggering cacheComponents errors
   await headers();
 
   const resolvedParams = await params;

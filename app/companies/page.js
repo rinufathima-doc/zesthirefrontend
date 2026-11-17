@@ -5,8 +5,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import Navbar from "../components/Navbar";
 
-// Use 127.0.0.1 to avoid Windows localhost IPv6 connection bugs
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
@@ -231,11 +230,11 @@ export default function CompaniesPage() {
                         </p>
                       </div>
 
-                      {/* Footer Action: View Profile & Reviews */}
+                      {/* Footer Action: View Profile & Reviews (Fixed plural /companies route) */}
                       <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-xs text-slate-400">Verified Employer</span>
                         <Link
-                          href={`/company/${companyId}`}
+                          href={`/companies/${companyId}`}
                           className="px-3.5 py-1.5 bg-slate-50 hover:bg-[#8cc63f] hover:text-slate-950 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 transition"
                         >
                           View & Reviews

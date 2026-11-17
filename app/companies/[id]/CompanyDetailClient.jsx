@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MapPin,
@@ -23,7 +23,6 @@ export default function CompanyDetailClient({ companyId }) {
   const [companyJobs, setCompanyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Reviews State
   const [reviews, setReviews] = useState([]);
   const [reviewerName, setReviewerName] = useState("");
   const [rating, setRating] = useState(5);
@@ -43,7 +42,10 @@ export default function CompanyDetailClient({ companyId }) {
           `${API_URL}/api/jobs/company/${companyId}`
         );
 
-        if (res.ok) {
+        if (!res.ok) {
+          setCompany(null);
+          toast.error("Failed to load company profile.");
+        } else {
           const data = await res.json();
 
           const compData =
@@ -54,9 +56,6 @@ export default function CompanyDetailClient({ companyId }) {
             data;
 
           setCompany(compData || {});
-        } else {
-          toast.error("Failed to load company profile.");
-          setCompany(null);
         }
 
         const jobsRes = await fetch(`${API_URL}/api/jobs`);
@@ -80,24 +79,17 @@ export default function CompanyDetailClient({ companyId }) {
               job?.employer ||
               job?.companyId;
 
-            return (
-              empRef?.toString() === companyId?.toString()
-            );
+            return empRef?.toString() === companyId?.toString();
           });
 
           setCompanyJobs(filtered);
         }
 
-        // Load reviews from localStorage
         const savedReviews = localStorage.getItem(
           `company_reviews_${companyId}`
         );
 
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
-        } else {
-          setReviews([]);
-        }
+        setReviews(savedReviews ? JSON.parse(savedReviews) : []);
       } catch (error) {
         console.error("Error fetching company details:", error);
         toast.error("An error occurred while loading profile.");
@@ -141,7 +133,7 @@ export default function CompanyDetailClient({ companyId }) {
     toast.success("Review submitted successfully!");
   };
 
-  if (loading || !companyId) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center text-slate-500 text-sm">
         Loading company profile...
@@ -171,16 +163,12 @@ export default function CompanyDetailClient({ companyId }) {
   }
 
   const companyName =
-    company?.companyName ||
-    company?.name ||
-    "Company Profile";
+    company?.companyName || company?.name || "Company Profile";
 
   const initialLetter = companyName.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-800 pb-20">
-
-      {/* Clean Header Section */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-28 pb-8 space-y-4">
         <Link
           href="/companies"
@@ -207,13 +195,8 @@ export default function CompanyDetailClient({ companyId }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {/* Left Column: Company Details & Reviews */}
         <div className="space-y-6 md:col-span-1">
-
-          {/* Company Details Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
             <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
               Company Details
@@ -230,7 +213,6 @@ export default function CompanyDetailClient({ companyId }) {
               {company?.companyWebsite && (
                 <div className="flex items-center space-x-3">
                   <Globe className="w-4 h-4 text-slate-400 flex-shrink-0" />
-
                   <a
                     href={company.companyWebsite}
                     target="_blank"
@@ -258,7 +240,6 @@ export default function CompanyDetailClient({ companyId }) {
             </div>
           </div>
 
-          {/* Candidate Reviews Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
             <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
               <span>Candidate Reviews</span>
@@ -268,7 +249,6 @@ export default function CompanyDetailClient({ companyId }) {
               </span>
             </h3>
 
-            {/* Write Review Form */}
             <form
               onSubmit={handleAddReview}
               className="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-100"
@@ -277,26 +257,20 @@ export default function CompanyDetailClient({ companyId }) {
                 Write a Review
               </h4>
 
-              <div>
-                <input
-                  type="text"
-                  placeholder="Your Name (optional)"
-                  value={reviewerName}
-                  onChange={(e) => setReviewerName(e.target.value)}
-                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8cc63f]"
-                />
-              </div>
+              <input
+                type="text"
+                placeholder="Your Name (optional)"
+                value={reviewerName}
+                onChange={(e) => setReviewerName(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8cc63f]"
+              />
 
               <div className="flex items-center space-x-2">
-                <span className="text-xs text-slate-500">
-                  Rating:
-                </span>
+                <span className="text-xs text-slate-500">Rating:</span>
 
                 <select
                   value={rating}
-                  onChange={(e) =>
-                    setRating(Number(e.target.value))
-                  }
+                  onChange={(e) => setRating(Number(e.target.value))}
                   className="text-xs px-2 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8cc63f]"
                 >
                   <option value={5}>5 / 5 Stars</option>
@@ -307,16 +281,14 @@ export default function CompanyDetailClient({ companyId }) {
                 </select>
               </div>
 
-              <div>
-                <textarea
-                  placeholder="Share your interview or work experience..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  rows={3}
-                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8cc63f] resize-none"
-                  required
-                />
-              </div>
+              <textarea
+                placeholder="Share your interview or work experience..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8cc63f] resize-none"
+                required
+              />
 
               <button
                 type="submit"
@@ -327,7 +299,6 @@ export default function CompanyDetailClient({ companyId }) {
               </button>
             </form>
 
-            {/* Reviews List */}
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
               {reviews.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-4">
@@ -351,9 +322,7 @@ export default function CompanyDetailClient({ companyId }) {
                     </div>
 
                     <div className="flex items-center space-x-0.5 text-amber-500">
-                      {Array.from({
-                        length: rev.rating,
-                      }).map((_, i) => (
+                      {Array.from({ length: rev.rating }).map((_, i) => (
                         <Star
                           key={i}
                           className="w-3 h-3 fill-current"
@@ -371,9 +340,7 @@ export default function CompanyDetailClient({ companyId }) {
           </div>
         </div>
 
-        {/* Right Column: About & Open Positions */}
         <div className="md:col-span-2 space-y-6">
-
           <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
             <h3 className="text-base font-bold text-slate-900">
               About the Company

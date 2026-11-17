@@ -1,16 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { Building2, MapPin, Globe, Mail, Phone, ChevronLeft, Send, User, Star } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Use 127.0.0.1 to avoid Windows localhost IPv6 connection bugs
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
+// Use environment variable with fallback
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-export default function PublicCompanyProfilePage({ params }) {
-  // Unwrap params safely using React.use() or direct access depending on Next.js version
-  const companyId = params?.id;
+// Force dynamic rendering so Vercel does not try to statically prerender dynamic routes at build time
+export const dynamic = "force-dynamic";
+
+export default function CompanyDetailPage({ params }) {
+  // Safely unwrap params using React.use() for Next.js App Router compatibility
+  const unwrappedParams = use(params);
+  const companyId = unwrappedParams?.id;
 
   const [company, setCompany] = useState(null);
   const [companyJobs, setCompanyJobs] = useState([]);
@@ -128,8 +132,6 @@ export default function PublicCompanyProfilePage({ params }) {
 
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-800 pb-20">
-      
-
       {/* Clean Header Section */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-28 pb-8 space-y-4">
         <Link href="/companies" className="inline-flex items-center space-x-1 text-xs text-slate-500 hover:text-slate-800 transition">

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import JobseekerNavbar from "../components/Navbar";
+import Navbar from "../../../components/Navbar";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -117,7 +117,7 @@ export default function FindJobsPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-800 pb-16">
-      <JobseekerNavbar />
+      <Navbar />
 
       {/* ================= DARK HERO HEADER WITH PILL SEARCH BAR ================= */}
       <div

@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import {
   MapPin,
@@ -11,9 +10,6 @@ import Navbar from "../../components/Navbar";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-// Render this page dynamically instead of during static build
-export const dynamic = "force-dynamic";
 
 async function getCompanyData(id) {
   try {

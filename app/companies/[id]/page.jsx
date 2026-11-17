@@ -1,4 +1,4 @@
-
+export const dynamic = "force-dynamic";
 import CompanyDetailClient from "./CompanyDetailClient";
 
 export default async function CompanyDetailPage({ params }) {

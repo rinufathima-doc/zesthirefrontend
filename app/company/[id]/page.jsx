@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, Suspense } from "react";
 import Link from "next/link";
 import { Building2, MapPin, Globe, Mail, Phone, ChevronLeft, Send, User, Star } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Use environment variable with fallback
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-// Force dynamic rendering so Vercel does not try to statically prerender dynamic routes at build time
-export const dynamic = "force-dynamic";
-
-export default function CompanyDetailPage({ params }) {
-  // Safely unwrap params using React.use() for Next.js App Router compatibility
+function CompanyDetailContent({ params }) {
   const unwrappedParams = use(params);
   const companyId = unwrappedParams?.id;
 
@@ -305,5 +300,13 @@ export default function CompanyDetailPage({ params }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CompanyDetailPage({ params }) {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-slate-500 text-sm">Loading company profile...</div>}>
+      <CompanyDetailContent params={params} />
+    </Suspense>
   );
 }

@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { Building2, MapPin, Globe, Mail, Phone, ChevronLeft, Send, User, Star } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-function CompanyDetailContent() {
-  const params = useParams();
+export default function CompanyDetailPage({ params }) {
+  // Read ID directly from the page props (No useParams hook needed!)
   const companyId = params?.id;
 
   const [company, setCompany] = useState(null);
@@ -301,13 +300,5 @@ function CompanyDetailContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function CompanyDetailPage() {
-  return (
-    <Suspense fallback={<div className="p-12 text-center text-slate-500 text-sm">Loading company profile...</div>}>
-      <CompanyDetailContent />
-    </Suspense>
   );
 }

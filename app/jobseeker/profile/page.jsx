@@ -16,6 +16,8 @@ const profileSchema = z.object({
   phone: z.string().min(10, "Please enter a valid phone number."),
 });
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
+
 export default function JobseekerProfilePage() {
   const dispatch = useDispatch();
   const router = useRouter();
@@ -49,7 +51,7 @@ export default function JobseekerProfilePage() {
   });
 
   const [profileImage, setProfileImage] = useState(null);
-  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeUrl, setResumeUrl] = useState("");
   const [isUploadingResume, setIsUploadingResume] = useState(false);
 
   const {
@@ -66,15 +68,18 @@ export default function JobseekerProfilePage() {
     },
   });
 
-  // Fetch latest profile data from backend on mount
+  // Fetch latest profile data and resume from backend on mount
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndResume = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://localhost:5000/api/jobseeker/profile", {
-          headers: { Authorization: `Bearer ${token}` },
+        const cleanToken = token.replace(/^Bearer\s+/i, "");
+
+        // 1. Fetch Profile Info
+        const res = await fetch(`${API_URL}/api/jobseeker/profile`, {
+          headers: { Authorization: `Bearer ${cleanToken}` },
         });
         const data = await res.json();
 
@@ -91,15 +96,29 @@ export default function JobseekerProfilePage() {
           setValue("phone", updated.phone);
 
           if (data.user.profilePicture) {
-            setProfileImage(`http://localhost:5000${data.user.profilePicture}`);
+            const photoPath = data.user.profilePicture;
+            setProfileImage(photoPath.startsWith("http") ? photoPath : `${API_URL}${photoPath}`);
           }
         }
+
+        // 2. Fetch Resume URL
+        const resumeRes = await fetch(`${API_URL}/api/jobseeker/resume`, {
+          headers: { Authorization: `Bearer ${cleanToken}` },
+        });
+        const resumeData = await resumeRes.json();
+
+        if (resumeRes.ok && resumeData.resumeUrl) {
+          const fullResumeUrl = resumeData.resumeUrl.startsWith("http")
+            ? resumeData.resumeUrl
+            : `${API_URL}${resumeData.resumeUrl}`;
+          setResumeUrl(fullResumeUrl);
+        }
       } catch (err) {
-        console.error("Failed to fetch profile:", err);
+        console.error("Failed to fetch profile/resume:", err);
       }
     };
 
-    fetchProfile();
+    fetchProfileAndResume();
   }, [setValue]);
 
   // Sync with Redux / localStorage
@@ -131,7 +150,7 @@ export default function JobseekerProfilePage() {
         setProfileImage(
           activeUser.profilePicture.startsWith("http")
             ? activeUser.profilePicture
-            : `http://localhost:5000${activeUser.profilePicture}`
+            : `${API_URL}${activeUser.profilePicture}`
         );
       }
     }
@@ -141,11 +160,13 @@ export default function JobseekerProfilePage() {
   const onSubmitProfile = async (data) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/jobseeker/profile", {
+      const cleanToken = token ? token.replace(/^Bearer\s+/i, "") : "";
+
+      const res = await fetch(`${API_URL}/api/jobseeker/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${cleanToken}`,
         },
         body: JSON.stringify(data),
       });
@@ -183,16 +204,21 @@ export default function JobseekerProfilePage() {
       formData.append("profilePicture", file);
 
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/jobseeker/photo", {
+      const cleanToken = token ? token.replace(/^Bearer\s+/i, "") : "";
+
+      const res = await fetch(`${API_URL}/api/jobseeker/photo`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${cleanToken}` },
         body: formData,
       });
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Photo upload failed");
 
-      const fullImageUrl = `http://localhost:5000${result.profilePicture}`;
+      const fullImageUrl = result.profilePicture.startsWith("http")
+        ? result.profilePicture
+        : `${API_URL}${result.profilePicture}`;
+        
       setProfileImage(fullImageUrl);
       toast.success("Profile photo updated successfully!");
     } catch (err) {
@@ -211,7 +237,6 @@ export default function JobseekerProfilePage() {
       return;
     }
 
-    setResumeFile(file);
     setIsUploadingResume(true);
 
     try {
@@ -219,15 +244,22 @@ export default function JobseekerProfilePage() {
       formData.append("resume", file);
 
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/jobseeker/resume", {
+      const cleanToken = token ? token.replace(/^Bearer\s+/i, "") : "";
+
+      const res = await fetch(`${API_URL}/api/jobseeker/resume`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${cleanToken}` },
         body: formData,
       });
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Resume upload failed");
 
+      const fullResumeUrl = result.resumeUrl.startsWith("http")
+        ? result.resumeUrl
+        : `${API_URL}${result.resumeUrl}`;
+
+      setResumeUrl(fullResumeUrl);
       toast.success("Resume uploaded successfully!");
     } catch (err) {
       console.error("Resume upload error:", err);
@@ -239,8 +271,10 @@ export default function JobseekerProfilePage() {
 
   // ================= LOGOUT HANDLER =================
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.clear();
+    document.cookie = "token=; path=/; max-age=0;";
+    document.cookie = "employertoken=; path=/; max-age=0;";
+    document.cookie = "role=; path=/; max-age=0;";
     dispatch(logout());
     toast.success("Logged out successfully!");
     router.push("/");
@@ -352,7 +386,7 @@ export default function JobseekerProfilePage() {
               <span className="text-[#8cc63f] underline cursor-pointer font-medium">
                 {profileData.phone || "Add phone number"}
               </span>{" "}
-              • {profileData.email || "No email linked"}
+              - {profileData.email || "No email linked"}
             </p>
           </div>
         )}
@@ -407,39 +441,65 @@ export default function JobseekerProfilePage() {
 
         {/* ================= TAB CONTENTS ================= */}
         {activeTab === "resume" ? (
-          <div className="w-full">
-            <label className="w-full border-2 border-solid border-slate-300 rounded-2xl py-10 px-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-100/60 transition shadow-sm">
-              <svg
-                className="w-8 h-8 text-[#8cc63f] mb-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                />
-              </svg>
-              <span className="text-slate-900 font-bold text-sm">
-                {isUploadingResume ? "Uploading..." : "Upload a resume"}
-              </span>
-              <span className="text-slate-400 text-xs mt-1">
-                PDF, .doc or .docx file under 5 MB.
-              </span>
-              {resumeFile && (
-                <span className="text-xs text-[#8cc63f] font-semibold mt-2">
-                  Selected: {resumeFile.name}
+          <div className="w-full space-y-4">
+            {resumeUrl ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
+                <div className="flex items-center space-x-3 truncate">
+                  <span className="text-2xl">📄</span>
+                  <div className="text-left truncate">
+                    <p className="font-semibold text-slate-800 text-sm truncate">Uploaded Resume</p>
+                    <p className="text-xs text-emerald-600 font-medium">Active & Saved</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <a
+                    href={resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition"
+                  >
+                    View
+                  </a>
+                  <label className="cursor-pointer px-3 py-1.5 bg-[#8cc63f] hover:bg-[#7cb342] text-slate-950 rounded-xl text-xs font-bold transition shadow-xs">
+                    <span>{isUploadingResume ? "Replacing..." : "Replace"}</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleResumeUpload}
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label className="w-full border-2 border-solid border-slate-300 rounded-2xl py-10 px-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-100/60 transition shadow-sm">
+                <svg
+                  className="w-8 h-8 text-[#8cc63f] mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                  />
+                </svg>
+                <span className="text-slate-900 font-bold text-sm">
+                  {isUploadingResume ? "Uploading..." : "Upload a resume"}
                 </span>
-              )}
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.doc,.docx"
-                onChange={handleResumeUpload}
-              />
-            </label>
+                <span className="text-slate-400 text-xs mt-1">
+                  PDF, .doc or .docx file under 5 MB.
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleResumeUpload}
+                />
+              </label>
+            )}
           </div>
         ) : (
           <div className="w-full text-slate-500 text-sm py-10">

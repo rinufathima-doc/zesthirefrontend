@@ -14,9 +14,10 @@ const isTokenExpired = (token) => {
   if (!token) return true;
   try {
     const cleanToken = token.replace(/^Bearer\s+/i, "");
-    const base64Url = cleanToken.split(".")[1];
-    if (!base64Url) return true;
+    const parts = cleanToken.split(".");
+    if (parts.length !== 3) return true; // Invalid JWT structure
 
+    const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
       atob(base64)
@@ -26,9 +27,13 @@ const isTokenExpired = (token) => {
     );
 
     const { exp } = JSON.parse(jsonPayload);
-    return exp && exp * 1000 < Date.now();
+    if (!exp) return false;
+
+    // Add a 5-second buffer to account for minor clock discrepancies between client and server
+    return exp * 1000 < Date.now() - 5000;
   } catch (err) {
-    return true;
+    console.error("Token validation error:", err);
+    return false; // Return false on parsing error to prevent accidental session wipes
   }
 };
 
@@ -56,15 +61,15 @@ export default function Navbar() {
     setMounted(true);
 
     const rawToken = localStorage.getItem("token");
-    if (rawToken && isTokenExpired(rawToken)) {
+    
+    // STRICT CHECK: If token is missing, expired, or invalid, purge local storage immediately
+    if (!rawToken || isTokenExpired(rawToken)) {
       localStorage.clear();
-      // Clear cookies on expiration
       document.cookie = "token=; path=/; max-age=0;";
       document.cookie = "employertoken=; path=/; max-age=0;";
       document.cookie = "role=; path=/; max-age=0;";
+      setStoredAuth({ isLoggedIn: false, role: "", userId: "", companyName: "", email: "" });
       dispatch(logout());
-      toast.error("Your session has expired. Please log in again.");
-      router.push("/login");
       return;
     }
 
@@ -72,7 +77,7 @@ export default function Navbar() {
     const localRole = localStorage.getItem("role");
     const localUserId = localStorage.getItem("userId");
 
-    if (rawToken || localUser) {
+    if (rawToken && localRole) {
       let parsedUser = {};
       try {
         parsedUser = localUser ? JSON.parse(localUser) : {};
@@ -86,7 +91,7 @@ export default function Navbar() {
         email: parsedUser.email || "",
       });
     }
-  }, [dispatch, router, user]);
+  }, [dispatch, user]);
 
   useEffect(() => {
     const fetchEmployerNavbarProfile = async () => {
@@ -135,25 +140,19 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // UPDATED LOGOUT HANDLER (Clears LocalStorage, Cookies, State, and Refreshes Router)
   const handleLogout = () => {
     localStorage.clear();
     
-    // Clear cookies so Next.js middleware instantly recognizes the logged-out state
     document.cookie = "token=; path=/; max-age=0;";
     document.cookie = "employertoken=; path=/; max-age=0;";
     document.cookie = "role=; path=/; max-age=0;";
 
-    // Instantly reset local stored auth state so Navbar re-renders public view
     setStoredAuth({ isLoggedIn: false, role: "", userId: "", companyName: "", email: "" });
-
     dispatch(logout());
     setShowEmployerProfileDropdown(false);
     setShowJobseekerProfileDropdown(false);
     toast.success("Logged out successfully!");
-    
     router.push("/");
-    router.refresh();
   };
 
   const safePathname = pathname || "";
@@ -163,9 +162,11 @@ export default function Navbar() {
     safePathname === "/companies" ||
     safePathname === "/employer/dashboard";
 
-  // If not mounted yet, render standard public links to guarantee server/client HTML match
-  const isLoggedIn = mounted && (Boolean(user?.isLoggedIn) || storedAuth.isLoggedIn);
-  const userRole = user?.role || storedAuth.role;
+  // Strict validation: Must have a token that is not expired to be logged in
+  const rawTokenCheck = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const hasValidToken = Boolean(rawTokenCheck) && !isTokenExpired(rawTokenCheck);
+  const isLoggedIn = mounted && hasValidToken && (Boolean(user?.isLoggedIn) || storedAuth.isLoggedIn);
+  const userRole = isLoggedIn ? (user?.role || storedAuth.role) : "";
 
   const companyName = user?.companyName || user?.name || employerProfile.companyName || storedAuth.companyName || "My Company";
   const userEmail = user?.email || employerProfile.email || storedAuth.email || "employer@gmail.com";
@@ -174,11 +175,8 @@ export default function Navbar() {
   const activeIsEmployer = mounted && isLoggedIn && userRole === "employer";
   const activeIsJobseeker = mounted && isLoggedIn && userRole === "jobseeker";
 
-  // Allow Navbar on /jobs-list (Find Jobs), hide it on all other jobseeker pages
-  const isFindJobsPage =
-    safePathname === "/jobs-list" || safePathname.startsWith("/jobs-list/");
-
-  if (!isFindJobsPage && (activeIsJobseeker || safePathname.startsWith("/jobseeker"))) {
+  const isInternalJobseekerRoute = safePathname.startsWith("/jobseeker/") && safePathname !== "/jobseeker/apply";
+  if (activeIsJobseeker && isInternalJobseekerRoute) {
     return null;
   }
 

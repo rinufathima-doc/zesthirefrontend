@@ -3,32 +3,39 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 
+// Use 127.0.0.1 to avoid Windows localhost IPv6 connection bugs
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
+
 export default function MyResume() {
   const [file, setFile] = useState(null);
   const [existingResumeUrl, setExistingResumeUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch current profile & resume URL on mount
+  // Fetch current resume URL on mount using the dedicated resume endpoint
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchResume = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        const rawToken = localStorage.getItem("token");
+        if (!rawToken) return;
+        const token = rawToken.replace(/^Bearer\s+/i, "");
 
-        const res = await fetch("http://localhost:5000/api/jobseeker/profile", {
+        const res = await fetch(`${API_URL}/api/jobseeker/resume`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
 
-        if (res.ok && data.user && data.user.resumeUrl) {
-          setExistingResumeUrl(data.user.resumeUrl);
+        if (res.ok && data.resumeUrl) {
+          const fullUrl = data.resumeUrl.startsWith("http")
+            ? data.resumeUrl
+            : `${API_URL}${data.resumeUrl}`;
+          setExistingResumeUrl(fullUrl);
         }
       } catch (err) {
         console.error("Failed to fetch resume info:", err);
       }
     };
 
-    fetchProfile();
+    fetchResume();
   }, []);
 
   const handleUpload = async (e) => {
@@ -43,8 +50,10 @@ export default function MyResume() {
       const formData = new FormData();
       formData.append("resume", file);
 
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/jobseeker/resume", {
+      const rawToken = localStorage.getItem("token");
+      const token = rawToken ? rawToken.replace(/^Bearer\s+/i, "") : "";
+
+      const res = await fetch(`${API_URL}/api/jobseeker/resume`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -53,7 +62,11 @@ export default function MyResume() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Resume upload failed");
 
-      setExistingResumeUrl(result.resumeUrl);
+      const fullUrl = result.resumeUrl.startsWith("http")
+        ? result.resumeUrl
+        : `${API_URL}${result.resumeUrl}`;
+
+      setExistingResumeUrl(fullUrl);
       toast.success("Resume uploaded successfully!");
       setFile(null);
     } catch (err) {
@@ -103,7 +116,7 @@ export default function MyResume() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-800">Your Saved Resume</h2>
               <a
-                href={`http://localhost:5000${existingResumeUrl}`}
+                href={existingResumeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs bg-[#8cc63f] text-slate-950 font-bold px-4 py-2 rounded-xl hover:bg-[#7cb342] transition"
@@ -114,7 +127,7 @@ export default function MyResume() {
 
             <div className="w-full h-[500px] border border-slate-200 rounded-xl overflow-hidden bg-slate-100">
               <iframe
-                src={`http://localhost:5000${existingResumeUrl}`}
+                src={existingResumeUrl}
                 title="Resume Preview"
                 className="w-full h-full"
               />
